@@ -13,8 +13,8 @@ std::pair<uint64_t, std::vector<NodesPerMove>> perft(Board &b, uint16_t depth) {
 
     uint64_t nodes = 0;
     auto moves = b.genMoves();
-    for (const Move &move : moves) {
-        Board newB = b.makePseudoLegalMove(move);
+    for (Move &move : moves) {
+        Board newB = b.makeAndSetMove(move);
         auto pair = perft(newB, depth - 1);
         nodes += pair.first;
         NodesPerMove nodesPerMove{move, pair.first};

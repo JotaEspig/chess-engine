@@ -12,7 +12,7 @@ Game::Game(std::string fen) { boards.push_back(Board(fen)); }
 
 Board &Game::makePseudoLegalMove(Move m) {
     Board last = boards.back();
-    Board b = last.makePseudoLegalMove(m);
+    Board b = last.makeAndSetMove(m);
     boards.push_back(b);
     return currentBoard();
 }

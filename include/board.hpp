@@ -19,7 +19,7 @@ class Board {
     Board();
     Board(std::string fen);
 
-    Board makePseudoLegalMove(Move m);
+    Board makeAndSetMove(Move &m);
     const std::vector<Move> &genMoves();
     bool isKingInCheck(int color = -1) const;
     bool isMate();

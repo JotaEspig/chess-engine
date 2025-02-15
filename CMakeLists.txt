@@ -43,6 +43,7 @@ set(SOURCE_FILES
     ${CMAKE_SOURCE_DIR}/src/utils.cpp
     ${CMAKE_SOURCE_DIR}/src/game.cpp
     ${CMAKE_SOURCE_DIR}/src/move.cpp
+    ${CMAKE_SOURCE_DIR}/src/engine.cpp
     ${CMAKE_SOURCE_DIR}/src/movegen.cpp
     ${CMAKE_SOURCE_DIR}/src/perft.cpp
 )

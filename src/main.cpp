@@ -2,6 +2,7 @@
 
 #include "board.hpp"
 #include "consts.hpp"
+#include "engine.hpp"
 #include "move.hpp"
 #include "perft.hpp"
 #include "utils.hpp"
@@ -16,14 +17,13 @@ int main() {
     }
 
     Board b{fen};
-    std::string str = b.stringify();
-    std::cout << str << std::endl;
-
     std::cout << "Is mate? " << b.isMate() << std::endl;
     std::cout << "Is draw? " << b.isDraw() << std::endl;
 
     std::string s;
     while (true) {
+        std::string str = b.stringify();
+        std::cout << str << std::endl;
         std::cout << "> ";
         std::getline(std::cin, s);
         if (!std::cin.good() || s == "q" || s == "exit") {
@@ -39,12 +39,21 @@ int main() {
             }
             std::cout << std::endl << pair.first << std::endl;
             continue;
+        } else if (s.find("eval") != std::string::npos) {
+            auto splitted = split(s, ' ');
+            if (splitted.size() != 2) {
+                continue;
+            }
+            auto report = minimax(b, std::stoi(splitted[1]));
+            std::cout << report.board.stringify() << ": " << report.score
+                      << std::endl;
+            continue;
         } else if (s == "") {
             continue;
         }
 
         Move m = Move::fromString(s);
-        b = b.makePseudoLegalMove(m);
+        b = b.makeAndSetMove(m);
         std::cout << b.stringify() << std::endl;
     }
 

@@ -46,7 +46,7 @@ const std::vector<Move> &Board::genMoves() {
                     for (int promotionPiece = KNIGHT; promotionPiece <= QUEEN;
                          ++promotionPiece) {
                         m = Move{from, to, false, promotionPiece};
-                        if (makePseudoLegalMove(m).isValid()) {
+                        if (makeAndSetMove(m).isValid()) {
                             _preallocatedMoves.push_back(m);
                         }
                     }
@@ -60,7 +60,7 @@ const std::vector<Move> &Board::genMoves() {
                 }
 
                 // Check if the move is valid, then add it to the list
-                if (makePseudoLegalMove(m).isValid()) {
+                if (makeAndSetMove(m).isValid()) {
                     _preallocatedMoves.push_back(m);
                 }
                 moves &= moves - 1;

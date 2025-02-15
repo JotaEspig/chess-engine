@@ -83,7 +83,7 @@ Board::Board(std::string fen) : Board{} {
     _isValidFlag = true;
 }
 
-Board Board::makePseudoLegalMove(Move m) {
+Board Board::makeAndSetMove(Move &m) {
     int color = -1;
     int foundPieceType = -1;
     int capturedColor = -1;
@@ -118,8 +118,10 @@ Board Board::makePseudoLegalMove(Move m) {
         } else {
             newBoard.bitboards[WHITE][PAWN] &= ~(m.to << 8);
         }
+        m.capturedPiece = PAWN;
     } else if (capturedColor != -1) {
         newBoard.bitboards[capturedColor][capturedPieceType] &= ~m.to;
+        m.capturedPiece = capturedPieceType;
     }
     if (m.isCastling) {
         uint64_t rookFrom = 0;
@@ -189,6 +191,10 @@ Board Board::makePseudoLegalMove(Move m) {
         newBoard.ctx.halfMoveClock = 0;
     }
     newBoard.ctx.fullMoveNumber += newBoard.ctx.whiteTurn;
+    // Setup m.isCheck for move score calculation
+    if (newBoard.isKingInCheck()) {
+        m.isCheck = true;
+    }
     return newBoard;
 }
 
@@ -246,13 +252,13 @@ bool Board::isKingInCheck(int color) const {
 
     uint64_t rooksAndQueens =
         bitboards[enemyColor][ROOK] | bitboards[enemyColor][QUEEN];
-    uint64_t kingOrthogonalMoves = _genRookMoves(*this,king, color == WHITE);
+    uint64_t kingOrthogonalMoves = _genRookMoves(*this, king, color == WHITE);
     if (rooksAndQueens & kingOrthogonalMoves) {
         return true;
     }
 
     uint64_t enemyKing = bitboards[enemyColor][KING];
-    uint64_t kingMoves = _genKingMoves(*this,king, color == WHITE);
+    uint64_t kingMoves = _genKingMoves(*this, king, color == WHITE);
     if (enemyKing & kingMoves) {
         return true;
     }
