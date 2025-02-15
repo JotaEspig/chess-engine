@@ -4,7 +4,7 @@
 #include "move.hpp"
 
 #if defined(_MSC_VER)
-int __builtin_ctzl(unsigned long long x) {
+int __builtin_ctzll(unsigned long long x) {
     unsigned long result;
     _BitScanForward64(&result, x);
     return result;
@@ -19,10 +19,10 @@ Move Move::fromString(std::string s) {
 
 std::string Move::stringify() const {
     std::string result = "";
-    int fromCount = __builtin_ctzl(from);
+    int fromCount = __builtin_ctzll(from);
     result += 'a' + 7 - ((fromCount) % 8);
     result += '1' + ((fromCount) / 8);
-    int toCount = __builtin_ctzl(to);
+    int toCount = __builtin_ctzll(to);
     result += 'a' + 7 - ((toCount) % 8);
     result += '1' + ((toCount) / 8);
     if (promotionPiece != -1) {

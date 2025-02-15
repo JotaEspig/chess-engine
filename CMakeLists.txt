@@ -8,6 +8,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAGS} -g3 -fsanitize=address,undefined")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${FLAGS} -O3")
 
+set(CMAKE_CXX_STANDARD 20)
+
 set(FLAGS "-Wall")
 if (CMAKE_COMPILER_IS_GNUXX)
     set(FLAGS "${FLAGS} -Wextra")
@@ -41,6 +43,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 set(SOURCE_FILES
     ${CMAKE_SOURCE_DIR}/src/board.cpp
     ${CMAKE_SOURCE_DIR}/src/utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/piecesquaretable.cpp
     ${CMAKE_SOURCE_DIR}/src/game.cpp
     ${CMAKE_SOURCE_DIR}/src/move.cpp
     ${CMAKE_SOURCE_DIR}/src/engine.cpp

@@ -6,3 +6,4 @@ struct AnalysisReport {
     int score;
     Board board;
 };
+
