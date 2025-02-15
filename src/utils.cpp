@@ -1,4 +1,5 @@
 #include <cctype>
+#include <cstdint>
 #include <iosfwd>
 #include <sstream>
 #include <string>

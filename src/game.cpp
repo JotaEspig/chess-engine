@@ -1,3 +1,4 @@
+#include <cassert>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,7 @@ Board &Game::makePseudoLegalMove(Move m) {
 }
 
 Board Game::undoMove() {
-    if (boards.size() > 1) {
+    if (boards.size() >= 1) {
         boards.pop_back();
         return boards.back();
     }
@@ -25,8 +26,7 @@ Board Game::undoMove() {
 }
 
 Board &Game::currentBoard() {
-    if (boards.size() > 1) {
-        return boards.back();
-    }
-    return Board{};
+    assert(boards.size() >= 1);
+
+    return boards.back();
 }
