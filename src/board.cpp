@@ -6,6 +6,7 @@
 #include "board.hpp"
 #include "consts.hpp"
 #include "move.hpp"
+#include "movegen.hpp"
 #include "utils.hpp"
 
 std::vector<Move> Board::_preallocatedMoves;
@@ -200,8 +201,8 @@ bool Board::isKingInCheck(int color) const {
     uint64_t enemyColor = color == WHITE ? BLACK : WHITE;
 
     uint64_t king = bitboards[color][KING];
-    uint64_t ourPieces = _getPiecesMask(color == WHITE);
-    uint64_t enemyPieces = _getPiecesMask(color != WHITE);
+    uint64_t ourPieces = _getPiecesMask(*this, color == WHITE);
+    uint64_t enemyPieces = _getPiecesMask(*this, color != WHITE);
 
     // Check for pawns
     if (color == WHITE) {
@@ -231,27 +232,27 @@ bool Board::isKingInCheck(int color) const {
     }
 
     uint64_t knights = bitboards[enemyColor][KNIGHT];
-    uint64_t kingKnightMoves = _genKnightMoves(king, color == WHITE);
+    uint64_t kingKnightMoves = _genKnightMoves(*this, king, color == WHITE);
     if (knights & kingKnightMoves) {
         return true;
     }
 
     uint64_t bishopsAndQueens =
         bitboards[enemyColor][BISHOP] | bitboards[enemyColor][QUEEN];
-    uint64_t kingDiagonalMoves = _genBishopMoves(king, color == WHITE);
+    uint64_t kingDiagonalMoves = _genBishopMoves(*this, king, color == WHITE);
     if (bishopsAndQueens & kingDiagonalMoves) {
         return true;
     }
 
     uint64_t rooksAndQueens =
         bitboards[enemyColor][ROOK] | bitboards[enemyColor][QUEEN];
-    uint64_t kingOrthogonalMoves = _genRookMoves(king, color == WHITE);
+    uint64_t kingOrthogonalMoves = _genRookMoves(*this,king, color == WHITE);
     if (rooksAndQueens & kingOrthogonalMoves) {
         return true;
     }
 
     uint64_t enemyKing = bitboards[enemyColor][KING];
-    uint64_t kingMoves = _genKingMoves(king, color == WHITE);
+    uint64_t kingMoves = _genKingMoves(*this,king, color == WHITE);
     if (enemyKing & kingMoves) {
         return true;
     }

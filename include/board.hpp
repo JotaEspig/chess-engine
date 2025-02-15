@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "consts.hpp"
 #include "context.hpp"
 #include "move.hpp"
 
@@ -35,12 +34,4 @@ class Board {
   private:
     bool _isValidFlag = false;
     static std::vector<Move> _preallocatedMoves;
-
-    uint64_t _genPawnMoves(uint64_t from, bool isWhite) const;
-    uint64_t _genKnightMoves(uint64_t from, bool isWhite) const;
-    uint64_t _genBishopMoves(uint64_t from, bool isWhite) const;
-    uint64_t _genRookMoves(uint64_t from, bool isWhite) const;
-    uint64_t _genQueenMoves(uint64_t from, bool isWhite) const;
-    uint64_t _genKingMoves(uint64_t from, bool isWhite) const;
-    uint64_t _getPiecesMask(bool isWhite) const;
 };

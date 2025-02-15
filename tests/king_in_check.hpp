@@ -2,6 +2,7 @@
 
 #include "board.hpp"
 #include "tests.hpp"
+#include "consts.hpp"
 
 void pawnChecksTests(tests::Test *t) {
     Board b{DEFAULT_FEN};

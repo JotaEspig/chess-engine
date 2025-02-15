@@ -8,8 +8,14 @@
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
+    std::string fen;
+    std::cout << "Enter FEN (leave it empty to use default start position): ";
+    std::getline(std::cin, fen);
+    if (fen == "") {
+        fen = DEFAULT_FEN;
+    }
 
-    Board b{DEFAULT_FEN};
+    Board b{fen};
     std::string str = b.stringify();
     std::cout << str << std::endl;
 
