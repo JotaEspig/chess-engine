@@ -12,6 +12,7 @@ class Game {
     Game();
     Game(std::string fen);
 
-    Board makePseudoLegalMove(Move m);
+    Board &makePseudoLegalMove(Move m);
     Board undoMove();
+    Board &currentBoard();
 };

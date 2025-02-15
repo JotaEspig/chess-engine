@@ -22,18 +22,25 @@ class Board {
 
     Board makePseudoLegalMove(Move m);
     const std::vector<Move> &genMoves();
+    bool isKingInCheck(int color = -1) const;
+    bool isMate();
+    bool isDraw();
     bool isValid() const;
     std::string stringify() const;
+    /**
+     * @brief Copy the current board with isMovesGenerated == false
+     */
+    Board copy();
 
   private:
     bool _isValidFlag = false;
-    std::vector<Move> _preallocatedMoves;
+    static std::vector<Move> _preallocatedMoves;
 
-    uint64_t _genPawnMoves(uint64_t from, bool isWhite);
-    uint64_t _genKnightMoves(uint64_t from, bool isWhite);
-    uint64_t _genBishopMoves(uint64_t from, bool isWhite);
-    uint64_t _genRookMoves(uint64_t from, bool isWhite);
-    uint64_t _genQueenMoves(uint64_t from, bool isWhite);
-    uint64_t _genKingMoves(uint64_t from, bool isWhite);
-    uint64_t _getOurPiecesMask(bool isWhite);
+    uint64_t _genPawnMoves(uint64_t from, bool isWhite) const;
+    uint64_t _genKnightMoves(uint64_t from, bool isWhite) const;
+    uint64_t _genBishopMoves(uint64_t from, bool isWhite) const;
+    uint64_t _genRookMoves(uint64_t from, bool isWhite) const;
+    uint64_t _genQueenMoves(uint64_t from, bool isWhite) const;
+    uint64_t _genKingMoves(uint64_t from, bool isWhite) const;
+    uint64_t _getPiecesMask(bool isWhite) const;
 };

@@ -1,3 +1,4 @@
+#include <iostream>
 #include <vector>
 
 #include "board.hpp"
@@ -7,8 +8,9 @@
 
 const std::vector<Move> &Board::genMoves() {
     _preallocatedMoves.clear();
+
     int color = ctx.whiteTurn ? WHITE : BLACK;
-    for (int pieceType = PAWN; pieceType < KING; ++pieceType) {
+    for (int pieceType = PAWN; pieceType <= KING; ++pieceType) {
         uint64_t pieces = bitboards[color][pieceType];
         while (pieces) {
             uint64_t from = lsb(pieces);
@@ -33,9 +35,28 @@ const std::vector<Move> &Board::genMoves() {
                 moves = _genKingMoves(from, ctx.whiteTurn);
                 break;
             }
+
             while (moves) {
                 uint64_t to = lsb(moves);
-                _preallocatedMoves.push_back({from, to});
+                Move m;
+                bool isCastling = pieceType == KING &&
+                                  ((from == E1 && (to == C1 || to == G1)) ||
+                                   (from == E8 && (to == C8 || to == G8)));
+                if (pieceType == PAWN && (to & (RANK_1 | RANK_8))) {
+                    for (int promotionPiece = KNIGHT; promotionPiece <= QUEEN;
+                         ++promotionPiece) {
+                        m = Move{from, to, false, promotionPiece};
+                    }
+                } else if (isCastling) {
+                    m = Move{from, to, true};
+                } else {
+                    m = Move{from, to};
+                }
+
+                // Check if the move is valid, then add it to the list
+                if (makePseudoLegalMove(m).isValid()) {
+                    _preallocatedMoves.push_back(m);
+                }
                 moves &= moves - 1;
             }
             pieces &= pieces - 1;
@@ -44,7 +65,7 @@ const std::vector<Move> &Board::genMoves() {
     return _preallocatedMoves;
 }
 
-inline uint64_t Board::_genPawnMoves(uint64_t from, bool isWhite) {
+inline uint64_t Board::_genPawnMoves(uint64_t from, bool isWhite) const {
     uint64_t moves = 0;
     uint64_t enemyPieces;
     uint64_t allPieces;
@@ -94,12 +115,12 @@ inline uint64_t Board::_genPawnMoves(uint64_t from, bool isWhite) {
             }
         }
         uint64_t leftCapture =
-            (from >> 7) & ~FILE_A & (enemyPieces | ctx.enPassantSquare);
+            (from >> 9) & ~FILE_A & (enemyPieces | ctx.enPassantSquare);
         if (leftCapture) {
             moves |= leftCapture;
         }
         uint64_t rightCapture =
-            (from >> 9) & ~FILE_H & (enemyPieces | ctx.enPassantSquare);
+            (from >> 7) & ~FILE_H & (enemyPieces | ctx.enPassantSquare);
         if (rightCapture) {
             moves |= rightCapture;
         }
@@ -107,67 +128,81 @@ inline uint64_t Board::_genPawnMoves(uint64_t from, bool isWhite) {
     return moves;
 }
 
-inline uint64_t Board::_genKnightMoves(uint64_t from, bool isWhite) {
-    uint64_t ourPieces = _getOurPiecesMask(isWhite) & ~from;
+inline uint64_t Board::_genKnightMoves(uint64_t from, bool isWhite) const {
+    uint64_t ourPieces = _getPiecesMask(isWhite) & ~from;
     uint64_t moves = 0;
-    uint64_t l1 = (from & ~FILE_A) << 6;
-    uint64_t l2 = (from & ~FILE_A & ~FILE_B) << 15;
-    uint64_t l3 = (from & ~FILE_H & ~FILE_G) << 17;
-    uint64_t l4 = (from & ~FILE_H) << 10;
-    uint64_t r1 = (from & ~FILE_H) >> 6;
-    uint64_t r2 = (from & ~FILE_H & ~FILE_G) >> 15;
-    uint64_t r3 = (from & ~FILE_A & ~FILE_B) >> 17;
-    uint64_t r4 = (from & ~FILE_A) >> 10;
+    uint64_t l1 = (from & ~FILE_G & ~FILE_H & ~RANK_8) << 6;
+    uint64_t l2 = (from & ~FILE_H & ~RANK_7 & ~RANK_8) << 15;
+    uint64_t l3 = (from & ~FILE_A & ~RANK_7 & ~RANK_8) << 17;
+    uint64_t l4 = (from & ~FILE_A & ~FILE_B & ~RANK_8) << 10;
+    uint64_t r1 = (from & ~FILE_A & ~FILE_B & ~RANK_1) >> 6;
+    uint64_t r2 = (from & ~FILE_A & ~RANK_1 & ~RANK_2) >> 15;
+    uint64_t r3 = (from & ~FILE_H & ~RANK_1 & ~RANK_2) >> 17;
+    uint64_t r4 = (from & ~FILE_G & ~FILE_H & ~RANK_1) >> 10;
     moves |= l1 | l2 | l3 | l4 | r1 | r2 | r3 | r4;
     // Removes collision
     moves &= ~ourPieces;
     return moves;
 }
 
-inline uint64_t Board::_genBishopMoves(uint64_t from, bool isWhite) {
-    uint64_t ourPieces = _getOurPiecesMask(isWhite) & ~from;
+inline uint64_t Board::_genBishopMoves(uint64_t from, bool isWhite) const {
+    uint64_t ourPieces = _getPiecesMask(isWhite) & ~from;
+    uint64_t enemyPieces = _getPiecesMask(!isWhite);
     uint64_t moves = 0;
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
         uint64_t oneBefore = from << (7 * (multiplier - 1));
         // up right
-        uint64_t l1 = (oneBefore & ~FILE_A & ~RANK_8) << 7;
+        uint64_t l1 = (oneBefore & ~FILE_H & ~RANK_8) << 7;
         if (!l1 || l1 & ourPieces) {
             break;
         }
         moves |= l1;
+        if (l1 & enemyPieces) {
+            break;
+        }
     }
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
         uint64_t oneBefore = from << (9 * (multiplier - 1));
         // up left
-        uint64_t l2 = (oneBefore & ~FILE_H & ~RANK_8) << 9;
+        uint64_t l2 = (oneBefore & ~FILE_A & ~RANK_8) << 9;
         if (!l2 || l2 & ourPieces) {
             break;
         }
         moves |= l2;
+        if (l2 & enemyPieces) {
+            break;
+        }
     }
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
         uint64_t oneBefore = from >> (7 * (multiplier - 1));
         // down left
-        uint64_t l3 = (oneBefore & ~FILE_H & ~RANK_1) >> 7;
+        uint64_t l3 = (oneBefore & ~FILE_A & ~RANK_1) >> 7;
         if (!l3 || l3 & ourPieces) {
             break;
         }
         moves |= l3;
+        if (l3 & enemyPieces) {
+            break;
+        }
     }
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
         uint64_t oneBefore = from >> (9 * (multiplier - 1));
         // down right
-        uint64_t l4 = (oneBefore & ~FILE_A & ~RANK_1) >> 9;
+        uint64_t l4 = (oneBefore & ~FILE_H & ~RANK_1) >> 9;
         if (!l4 || l4 & ourPieces) {
             break;
         }
         moves |= l4;
+        if (l4 & enemyPieces) {
+            break;
+        }
     }
     return moves;
 }
 
-inline uint64_t Board::_genRookMoves(uint64_t from, bool isWhite) {
-    uint64_t ourPieces = _getOurPiecesMask(isWhite) & ~from;
+inline uint64_t Board::_genRookMoves(uint64_t from, bool isWhite) const {
+    uint64_t ourPieces = _getPiecesMask(isWhite) & ~from;
+    uint64_t enemyPieces = _getPiecesMask(!isWhite);
     uint64_t moves = 0;
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
         uint64_t oneBefore = from << (8 * (multiplier - 1));
@@ -177,6 +212,9 @@ inline uint64_t Board::_genRookMoves(uint64_t from, bool isWhite) {
             break;
         }
         moves |= l1;
+        if (l1 & enemyPieces) {
+            break;
+        }
     }
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
         uint64_t oneBefore = from >> (8 * (multiplier - 1));
@@ -186,59 +224,96 @@ inline uint64_t Board::_genRookMoves(uint64_t from, bool isWhite) {
             break;
         }
         moves |= l2;
+        if (l2 & enemyPieces) {
+            break;
+        }
     }
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
-        uint64_t oneBefore = from << multiplier;
+        uint64_t oneBefore = from << (multiplier - 1);
         // left
         uint64_t l3 = (oneBefore & ~FILE_A) << 1;
         if (!l3 || l3 & ourPieces) {
             break;
         }
         moves |= l3;
+        if (l3 & enemyPieces) {
+            break;
+        }
     }
     for (int multiplier = 1; multiplier <= 7; ++multiplier) {
-        uint64_t oneBefore = from >> multiplier;
+        uint64_t oneBefore = from >> (multiplier - 1);
         // right
         uint64_t l4 = (oneBefore & ~FILE_H) >> 1;
         if (!l4 || l4 & ourPieces) {
             break;
         }
         moves |= l4;
+        if (l4 & enemyPieces) {
+            break;
+        }
     }
     return moves;
 }
 
-inline uint64_t Board::_genQueenMoves(uint64_t from, bool isWhite) {
+inline uint64_t Board::_genQueenMoves(uint64_t from, bool isWhite) const {
     return _genBishopMoves(from, isWhite) | _genRookMoves(from, isWhite);
 }
 
-inline uint64_t Board::_genKingMoves(uint64_t from, bool isWhite) {
-    uint64_t ourPieces = _getOurPiecesMask(isWhite) & ~from;
+inline uint64_t Board::_genKingMoves(uint64_t from, bool isWhite) const {
+    uint64_t ourPieces = _getPiecesMask(isWhite) & ~from;
     uint64_t moves = 0;
-    uint64_t l1 = (from & ~FILE_A) << 7;
-    uint64_t l2 = (from & ~FILE_A) << 8;
-    uint64_t l3 = (from & ~FILE_H) << 9;
-    uint64_t l4 = (from & ~FILE_H) << 1;
-    uint64_t r1 = (from & ~FILE_H) >> 7;
-    uint64_t r2 = (from & ~FILE_H) >> 8;
-    uint64_t r3 = (from & ~FILE_A) >> 9;
+    uint64_t l1 = (from & ~FILE_H & ~RANK_8) << 7;
+    uint64_t l2 = (from & ~RANK_8) << 8;
+    uint64_t l3 = (from & ~FILE_A & ~RANK_8) << 9;
+    uint64_t l4 = (from & ~FILE_A) << 1;
+    uint64_t r1 = (from & ~FILE_A & ~RANK_1) >> 7;
+    uint64_t r2 = (from & ~RANK_1) >> 8;
+    uint64_t r3 = (from & ~FILE_H & ~RANK_1) >> 9;
     uint64_t r4 = (from & ~FILE_A) >> 1;
     moves |= l1 | l2 | l3 | l4 | r1 | r2 | r3 | r4;
+    if (isWhite) {
+        uint64_t f1g1 = F1 | G1;
+        uint64_t b1c1d1 = B1 | C1 | D1;
+        bool canCastleKingside =
+            (ctx.castlingRights & WHITE_KING_SIDE) && !(f1g1 & ourPieces);
+        bool canCastleQueenside =
+            (ctx.castlingRights & WHITE_QUEEN_SIDE) && !(b1c1d1 & ourPieces);
+        if (canCastleKingside) {
+            moves |= G1;
+        }
+        if (canCastleQueenside) {
+            moves |= C1;
+        }
+    } else {
+        uint64_t f8g8 = F8 | G8;
+        uint64_t b8c8d8 = B8 | C8 | D8;
+        bool canCastleKingside =
+            (ctx.castlingRights & BLACK_KING_SIDE) && !(f8g8 & ourPieces);
+        bool canCastleQueenside =
+            (ctx.castlingRights & BLACK_QUEEN_SIDE) && !(b8c8d8 & ourPieces);
+        if (canCastleKingside) {
+            moves |= G8;
+        }
+        if (canCastleQueenside) {
+            moves |= C8;
+        }
+    }
+
     // Removes collision
     moves &= ~ourPieces;
     return moves;
 }
 
-inline uint64_t Board::_getOurPiecesMask(bool isWhite) {
-    uint64_t ourPieces;
+inline uint64_t Board::_getPiecesMask(bool isWhite) const {
+    uint64_t pieces;
     if (isWhite) {
-        ourPieces = bitboards[WHITE][PAWN] | bitboards[WHITE][KNIGHT] |
-                    bitboards[WHITE][BISHOP] | bitboards[WHITE][ROOK] |
-                    bitboards[WHITE][QUEEN] | bitboards[WHITE][KING];
+        pieces = bitboards[WHITE][PAWN] | bitboards[WHITE][KNIGHT] |
+                 bitboards[WHITE][BISHOP] | bitboards[WHITE][ROOK] |
+                 bitboards[WHITE][QUEEN] | bitboards[WHITE][KING];
     } else {
-        ourPieces = bitboards[BLACK][PAWN] | bitboards[BLACK][KNIGHT] |
-                    bitboards[BLACK][BISHOP] | bitboards[BLACK][ROOK] |
-                    bitboards[BLACK][QUEEN] | bitboards[BLACK][KING];
+        pieces = bitboards[BLACK][PAWN] | bitboards[BLACK][KNIGHT] |
+                 bitboards[BLACK][BISHOP] | bitboards[BLACK][ROOK] |
+                 bitboards[BLACK][QUEEN] | bitboards[BLACK][KING];
     }
-    return ourPieces;
+    return pieces;
 }

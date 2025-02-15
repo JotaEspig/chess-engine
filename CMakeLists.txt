@@ -29,7 +29,7 @@ else (DOXYGEN_FOUND)
     message("Doxygen not found. You won't be able to use `make docs`")
 endif (DOXYGEN_FOUND)
 
-# =-=-=-=-=-=-= LIBRARY =-=-=-=-=-=-=
+# =-=-=-=-=-=-= EXE =-=-=-=-=-=-=
 if (UNIX)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 endif (UNIX)
@@ -39,12 +39,29 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 set(SOURCE_FILES
-    ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/board.cpp
     ${CMAKE_SOURCE_DIR}/src/utils.cpp
     ${CMAKE_SOURCE_DIR}/src/game.cpp
     ${CMAKE_SOURCE_DIR}/src/move.cpp
     ${CMAKE_SOURCE_DIR}/src/movegen.cpp
+    ${CMAKE_SOURCE_DIR}/src/perft.cpp
 )
 
-add_executable(chess-engine ${SOURCE_FILES})
+set(EXE_SOURCE_FILES
+    ${SOURCE_FILES}
+    ${CMAKE_SOURCE_DIR}/src/main.cpp
+)
+
+add_executable(chess-engine ${EXE_SOURCE_FILES})
+
+# TESTS
+
+set(TESTS_SOURCE_FILES
+    ${SOURCE_FILES}
+    ${CMAKE_SOURCE_DIR}/tests/main.cpp
+)
+
+add_executable(tests ${TESTS_SOURCE_FILES})
+
+target_include_directories(tests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+

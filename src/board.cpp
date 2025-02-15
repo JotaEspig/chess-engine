@@ -1,3 +1,5 @@
+#include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <string>
 
@@ -5,6 +7,8 @@
 #include "consts.hpp"
 #include "move.hpp"
 #include "utils.hpp"
+
+std::vector<Move> Board::_preallocatedMoves;
 
 Board::Board() : bitboards{{0}}, ctx{false, 0, 0ULL, 0, 0} {
     _preallocatedMoves.reserve(MAX_MOVES);
@@ -35,12 +39,11 @@ Board::Board(std::string fen) : Board{} {
             } else if (c >= 'a' && c <= 'z') {
                 boardIdx = 1;
             }
-
+            // 7 - x because of MSB and LSB.
+            // See bitboards comment
             int pieceIdx = getPieceIdx(c);
-            bitboards[boardIdx][pieceIdx] |=
-                1ULL << (rank * 8 + (7 - file)); // 7 - x because of MSB and
-                                                 // LSB. See bitboards comment
-            file++;
+            bitboards[boardIdx][pieceIdx] |= 1ULL << (rank * 8 + (7 - file));
+            ++file;
         }
     }
 
@@ -66,11 +69,10 @@ Board::Board(std::string fen) : Board{} {
     }
     // En passant square
     if (splitted[3] != "-") {
+        // 7 - x because of MSB and LSB.
+        // See bitboards comment
         ctx.enPassantSquare =
-            1ULL
-            << (8 * (splitted[3][1] - '1') +
-                (7 - splitted[3][0] -
-                 'a')); // 7 - x because of MSB and LSB. See bitboards comment
+            1ULL << (8 * (splitted[3][1] - '1') + (7 - splitted[3][0] - 'a'));
     }
     // Half move clock
     ctx.halfMoveClock = std::stoi(splitted[4]);
@@ -82,21 +84,23 @@ Board::Board(std::string fen) : Board{} {
 
 Board Board::makePseudoLegalMove(Move m) {
     int color = -1;
+    int foundPieceType = -1;
     int capturedColor = -1;
-    int pieceType = -1;
     int capturedPieceType = -1;
     Board newBoard = *this;
 
     // Update bitboards
-    for (pieceType = PAWN; pieceType < KING; ++pieceType) {
+    for (int pieceType = PAWN; pieceType <= KING; ++pieceType) {
         if (bitboards[WHITE][pieceType] & m.from) {
             newBoard.bitboards[WHITE][pieceType] &= ~m.from;
             newBoard.bitboards[WHITE][pieceType] |= m.to;
+            foundPieceType = pieceType;
             color = WHITE;
         } else if (bitboards[BLACK][pieceType] & m.from) {
             newBoard.bitboards[BLACK][pieceType] &= ~m.from;
             newBoard.bitboards[BLACK][pieceType] |= m.to;
             color = BLACK;
+            foundPieceType = pieceType;
         }
         // Check for captures
         if (bitboards[WHITE][pieceType] & m.to) {
@@ -107,7 +111,7 @@ Board Board::makePseudoLegalMove(Move m) {
             capturedColor = BLACK;
         }
     }
-    if (m.to == ctx.enPassantSquare) {
+    if (foundPieceType == PAWN && m.to == ctx.enPassantSquare) {
         if (color == WHITE) {
             newBoard.bitboards[BLACK][PAWN] &= ~(m.to >> 8);
         } else {
@@ -116,19 +120,69 @@ Board Board::makePseudoLegalMove(Move m) {
     } else if (capturedColor != -1) {
         newBoard.bitboards[capturedColor][capturedPieceType] &= ~m.to;
     }
+    if (m.isCastling) {
+        uint64_t rookFrom = 0;
+        uint64_t rookTo = 0;
+        if (m.to == G1) {
+            rookFrom = H1;
+            rookTo = F1;
+            newBoard.ctx.castlingRights &= ~WHITE_BOTH;
+        } else if (m.to == C1) {
+            rookFrom = A1;
+            rookTo = D1;
+            newBoard.ctx.castlingRights &= ~WHITE_BOTH;
+        } else if (m.to == G8) {
+            rookFrom = H8;
+            rookTo = F8;
+            newBoard.ctx.castlingRights &= ~BLACK_BOTH;
+        } else if (m.to == C8) {
+            rookFrom = A8;
+            rookTo = D8;
+            newBoard.ctx.castlingRights &= ~BLACK_BOTH;
+        }
 
-    if (color == -1 || pieceType == -1 || color == capturedColor) {
+        newBoard.bitboards[color][ROOK] &= ~rookFrom;
+        newBoard.bitboards[color][ROOK] |= rookTo;
+    }
+
+    if (color == -1 || foundPieceType == -1 || color == capturedColor) {
         newBoard._isValidFlag = false;
         return newBoard;
     }
 
+    bool isDoublePush = false;
+    if (foundPieceType == ROOK) {
+        // update castling rights
+        if (m.from == H1) {
+            newBoard.ctx.castlingRights &= ~WHITE_KING_SIDE;
+        } else if (m.from == A1) {
+            newBoard.ctx.castlingRights &= ~WHITE_QUEEN_SIDE;
+        } else if (m.from == H8) {
+            newBoard.ctx.castlingRights &= ~BLACK_KING_SIDE;
+        } else if (m.from == A8) {
+            newBoard.ctx.castlingRights &= ~BLACK_QUEEN_SIDE;
+        }
+    } else if (foundPieceType == PAWN) {
+        if (color == WHITE) {
+            if (m.from & RANK_2 && m.to & RANK_4) {
+                isDoublePush = true;
+            }
+        } else {
+            if (m.from & RANK_7 && m.to & RANK_5) {
+                isDoublePush = true;
+            }
+        }
+    }
+
+    if (isDoublePush) {
+        newBoard.ctx.enPassantSquare = color == WHITE ? m.to >> 8 : m.to << 8;
+    } else {
+        newBoard.ctx.enPassantSquare = 0ULL;
+    }
+
     // Update context
     newBoard.ctx.whiteTurn = !ctx.whiteTurn;
-    // TODO Implement update castling rights
-    // newBoard.ctx.castlingRights = ctx.castlingRights;
-    // TODO implement enPassant Square
-    newBoard.ctx.enPassantSquare = 0ULL;
-    if (capturedColor == -1 || pieceType != PAWN) {
+    if (capturedColor == -1 || foundPieceType != PAWN) {
         newBoard.ctx.halfMoveClock = ctx.halfMoveClock + 1;
     } else {
         newBoard.ctx.halfMoveClock = 0;
@@ -137,7 +191,97 @@ Board Board::makePseudoLegalMove(Move m) {
     return newBoard;
 }
 
-bool Board::isValid() const { return _isValidFlag; }
+bool Board::isKingInCheck(int color) const {
+    if (color == -1) {
+        color = ctx.whiteTurn ? WHITE : BLACK;
+    }
+
+    assert(color == WHITE || color == BLACK);
+    uint64_t enemyColor = color == WHITE ? BLACK : WHITE;
+
+    uint64_t king = bitboards[color][KING];
+    uint64_t ourPieces = _getPiecesMask(color == WHITE);
+    uint64_t enemyPieces = _getPiecesMask(color != WHITE);
+
+    // Check for pawns
+    if (color == WHITE) {
+        uint64_t rightCapture =
+            (king << 7) & ~FILE_A &
+            bitboards[BLACK][PAWN]; // black pawns in A file cannot capture
+                                    // to the right
+        uint64_t leftCapture =
+            (king << 9) & ~FILE_H &
+            bitboards[BLACK][PAWN]; // black pawns in H file cannot capture
+                                    // to the left
+        if (leftCapture || rightCapture) {
+            return true;
+        }
+    } else {
+        uint64_t leftCapture =
+            (king >> 9) & ~FILE_A &
+            bitboards[WHITE][PAWN]; // white pawns in A file cannot capture
+                                    // to the left
+        uint64_t rightCapture =
+            (king >> 7) & ~FILE_H &
+            bitboards[WHITE][PAWN]; // white pawns in H file cannot capture
+                                    // to the right
+        if (leftCapture || rightCapture) {
+            return true;
+        }
+    }
+
+    uint64_t knights = bitboards[enemyColor][KNIGHT];
+    uint64_t kingKnightMoves = _genKnightMoves(king, color == WHITE);
+    if (knights & kingKnightMoves) {
+        return true;
+    }
+
+    uint64_t bishopsAndQueens =
+        bitboards[enemyColor][BISHOP] | bitboards[enemyColor][QUEEN];
+    uint64_t kingDiagonalMoves = _genBishopMoves(king, color == WHITE);
+    if (bishopsAndQueens & kingDiagonalMoves) {
+        return true;
+    }
+
+    uint64_t rooksAndQueens =
+        bitboards[enemyColor][ROOK] | bitboards[enemyColor][QUEEN];
+    uint64_t kingOrthogonalMoves = _genRookMoves(king, color == WHITE);
+    if (rooksAndQueens & kingOrthogonalMoves) {
+        return true;
+    }
+
+    uint64_t enemyKing = bitboards[enemyColor][KING];
+    uint64_t kingMoves = _genKingMoves(king, color == WHITE);
+    if (enemyKing & kingMoves) {
+        return true;
+    }
+
+    return false;
+}
+
+bool Board::isMate() { return isKingInCheck() && genMoves().size() == 0; }
+
+bool Board::isDraw() {
+    // Fifty move rule
+    if (ctx.halfMoveClock >= 100) {
+        return true;
+    }
+
+    // TODO Implement threefold repetition
+    // TODO Implement insufficient material
+
+    return !isKingInCheck() && genMoves().size() == 0;
+}
+
+bool Board::isValid() const {
+    if (!_isValidFlag) {
+        return false;
+    }
+
+    // Inverted colors to check if white can capture the king
+    int color = ctx.whiteTurn ? BLACK : WHITE;
+    return !isKingInCheck(color);
+}
 
 std::string Board::stringify() const {
     char visualBoard[64] = {0};
@@ -176,3 +320,5 @@ std::string Board::stringify() const {
 
     return result;
 }
+
+inline Board Board::copy() { return *this; }
