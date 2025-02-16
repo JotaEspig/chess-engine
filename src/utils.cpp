@@ -1,5 +1,6 @@
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 #include <iosfwd>
 #include <sstream>
 #include <string>
@@ -74,3 +75,26 @@ char getPieceChar(int i, bool isWhite) {
 }
 
 uint64_t lsb(uint64_t i) { return i & -i; }
+
+#if defined(_MSC_VER)
+int countZeros(unsigned long long x) {
+    unsigned long result;
+    _BitScanForward64(&result, x);
+    return result;
+}
+#else
+int countZeros(unsigned long long x) { return __builtin_ctzll(x); }
+#endif
+
+void initZobristKeys(uint64_t keys[5][6][64]) {
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 6; j++) {
+            for (int k = 0; k < 64; k++) {
+                keys[i][j][k] = 0ULL;
+                for (int l = 0; l < 64; l++) {
+                    keys[i][j][k] |= (uint64_t{(uint64_t)rand()} & 1) << l;
+                }
+            }
+        }
+    }
+}

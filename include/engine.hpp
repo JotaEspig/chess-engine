@@ -11,6 +11,7 @@
 #include "analysis_report.hpp"
 #include "consts.hpp"
 #include "piecesquaretable.hpp"
+#include "utils.hpp"
 
 extern std::unordered_map<int, int> pieceValues;
 
@@ -63,14 +64,14 @@ inline int Engine::evaluate(AnalysisBoard &board) {
     for (int pieceType = PAWN; pieceType < KING; pieceType++) {
         auto whiteBB = board.bitboards[WHITE][pieceType];
         while (whiteBB) {
-            int square = __builtin_ctzll(whiteBB);
+            int square = countZeros(whiteBB);
             score += getPieceSquareValue(pieceType, WHITE, square);
             whiteBB &= whiteBB - 1;
         }
 
         auto blackBB = board.bitboards[BLACK][pieceType];
         while (blackBB) {
-            int square = __builtin_ctzll(blackBB);
+            int square = countZeros(blackBB);
             score -= getPieceSquareValue(pieceType, BLACK, square);
             blackBB &= blackBB - 1;
         }

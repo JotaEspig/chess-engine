@@ -77,15 +77,23 @@ int main() {
             auto report = e.bestReport;
             std::cout << report.board.stringify() << ": " << report.score
                       << std::endl;
-            std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::seconds>(e.totalTime()) << std::endl;
+            std::cout << "Total time: "
+                      << std::chrono::duration_cast<std::chrono::seconds>(
+                             e.totalTime())
+                      << std::endl;
             continue;
         } else if (s == "") {
             continue;
         }
 
-        Move m = Move::fromString(s);
-        b = b.makeAndSetMove(m);
-        std::cout << b.stringify() << std::endl;
+        try {
+            Move m = Move::fromString(s);
+            b = b.makeAndSetMove(m);
+            std::cout << b.stringify() << std::endl;
+        } catch (const std::exception &e) {
+            std::cout << e.what() << std::endl;
+            continue;
+        }
     }
 
     return 0;

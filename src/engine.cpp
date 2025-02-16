@@ -90,7 +90,7 @@ AnalysisReport Engine::alphaBetaMax(AnalysisBoard &board, int depth, int alpha,
             }
         }
         if (report.score >= beta) {
-            break;
+            return report;
         }
     }
     return bestReport;
@@ -122,7 +122,7 @@ AnalysisReport Engine::alphaBetaMin(AnalysisBoard &board, int depth, int alpha,
             }
         }
         if (report.score <= alpha) {
-            break;
+            return report;
         }
     }
     return bestReport;

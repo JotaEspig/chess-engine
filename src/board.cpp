@@ -10,9 +10,11 @@
 #include "utils.hpp"
 
 std::vector<Move> Board::_preallocatedMoves;
+uint64_t ZOBRIST_KEYS[5][6][64] = {0};
 
 Board::Board() : bitboards{{0}}, ctx{false, 0, 0ULL, 0, 0} {
     _preallocatedMoves.reserve(MAX_MOVES);
+    _initZobristKeys();
 }
 
 Board::Board(std::string fen) : Board{} {
@@ -80,6 +82,7 @@ Board::Board(std::string fen) : Board{} {
     // Full move number
     ctx.fullMoveNumber = std::stoi(splitted[5]);
 
+    _setHash();
     _isValidFlag = true;
 }
 
@@ -191,6 +194,7 @@ Board Board::makeAndSetMove(Move &m) {
         newBoard.ctx.halfMoveClock = 0;
     }
     newBoard.ctx.fullMoveNumber += newBoard.ctx.whiteTurn;
+    newBoard._setHash();
     // Setup m.isCheck for move score calculation
     if (newBoard.isKingInCheck()) {
         m.isCheck = true;
@@ -328,4 +332,9 @@ std::string Board::stringify() const {
     return result;
 }
 
-inline Board Board::copy() { return *this; }
+void Board::_initZobristKeys() {
+    if (ZOBRIST_KEYS[0][0][0] != 0) {
+        return;
+    }
+    initZobristKeys(ZOBRIST_KEYS);
+}

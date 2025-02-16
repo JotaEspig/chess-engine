@@ -6,6 +6,9 @@
 
 #include "context.hpp"
 #include "move.hpp"
+#include "utils.hpp"
+
+extern uint64_t ZOBRIST_KEYS[5][6][64];
 
 class Board {
   public:
@@ -15,6 +18,7 @@ class Board {
     // representing h1
     uint64_t bitboards[2][6] = {{0}};
     Context ctx{false, 0, 0ULL, 0, 0};
+    uint64_t hash = 0ULL;
 
     Board();
     Board(std::string fen);
@@ -34,4 +38,30 @@ class Board {
   private:
     bool _isValidFlag = false;
     static std::vector<Move> _preallocatedMoves;
+
+    void _setHash();
+    void _initZobristKeys();
 };
+
+inline Board Board::copy() { return *this; }
+
+inline void Board::_setHash() {
+    hash = 0ULL;
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 6; j++) {
+            uint64_t b = bitboards[i][j];
+            while (b) {
+                int index = __builtin_ctzll(b);
+                hash ^= ZOBRIST_KEYS[i][j][index];
+                b &= b - 1;
+            }
+        }
+    }
+    if (ctx.enPassantSquare != 0ULL) {
+        hash ^= ZOBRIST_KEYS[2][0][countZeros(ctx.enPassantSquare)];
+    }
+    if (ctx.castlingRights != 0) {
+        hash ^= ZOBRIST_KEYS[3][1][(int)ctx.castlingRights];
+    }
+    hash ^= ZOBRIST_KEYS[4][2][ctx.whiteTurn];
+}
