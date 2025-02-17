@@ -73,7 +73,6 @@ int main() {
             std::cout << std::endl;
             t.join();
 
-            e.analysisByDepth(ab, std::stoi(splitted[1]));
             auto report = e.bestReport;
             std::cout << report.board.stringify() << ": " << report.score
                       << std::endl;
